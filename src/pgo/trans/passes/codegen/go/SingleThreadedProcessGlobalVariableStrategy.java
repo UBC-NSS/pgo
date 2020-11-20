@@ -14,6 +14,7 @@ import pgo.scope.UID;
 import java.util.Objects;
 
 public class SingleThreadedProcessGlobalVariableStrategy extends GlobalVariableStrategy {
+
 	@Override
 	public void initPostlude(GoModuleBuilder moduleBuilder, GoBlockBuilder initBuilder) {
 		// nothing to do
@@ -22,6 +23,11 @@ public class SingleThreadedProcessGlobalVariableStrategy extends GlobalVariableS
 	@Override
 	public void processPrelude(GoBlockBuilder processBody, PlusCalProcess process, String processName, GoVariableName self, GoType selfType) {
 		throw new InternalCompilerError();
+	}
+
+	@Override
+	public void registerNondeterminism(GoBlockBuilder builder) {
+		// pass
 	}
 
 	@Override

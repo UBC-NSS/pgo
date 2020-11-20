@@ -127,20 +127,29 @@ func releaseLock(lock chan<- int) {
 	}
 }
 
+// An indicator for whether some archetype resource operations are able to block.
+// Some resources do not allow blocking once acquired, so such a resource should
+// indicate this by setting the bit.
+// All resources should have a non-blocking path (where they spuriously fail if they
+// cannot make progress, rather than blocking indefinitely), and must take it if
+// the bit is set. If not, they may block indefinitely, such that behaviour will be
+// indistinguishable from a critical section that has not yet begun executing.
+type RiskBit *bool
+
 // ArchetypeResource defines the interface that parameters passed to functions
 // derived from Modular PlusCal's archetypes must implement.
 type ArchetypeResource interface {
 	// Acquire attempts to get access to a resource with read and/or write
 	// permissions. Returns a boolean indicating whether it was successful.
-	Acquire(access ResourceAccess) error
+	Acquire(access ResourceAccess, riskBit RiskBit) error
 
 	// Read returns the current value associated with a resource.
 	// Resource needs to have been acquired first.
-	Read() (interface{}, error)
+	Read(riskBit RiskBit) (interface{}, error)
 
 	// Write receives a new value that the underlying resource is
 	// supposed to be set to.
-	Write(value interface{}) error
+	Write(value interface{}, riskBit RiskBit) error
 
 	// Release causes the calling process to cease having access to the
 	// shared resource. Any written changes to the underlying values
@@ -223,7 +232,7 @@ func (s SortableArchetypeResource) Less(i, j int) bool {
 // an error in case one of the resources cannot be acquired. This
 // function makes sure that resources are acquired in proper order
 // (i.e., according to the resource's implementation of `Less`).
-func AcquireResources(access ResourceAccess, resources ...ArchetypeResource) error {
+func AcquireResources(access ResourceAccess, riskBit RiskBit, resources ...ArchetypeResource) error {
 	// sort the resources to be acquired according to their
 	// implementation of `Less`
 	sort.Sort(SortableArchetypeResource(resources))
@@ -231,7 +240,7 @@ func AcquireResources(access ResourceAccess, resources ...ArchetypeResource) err
 
 	// resources are now ordered
 	for _, r := range resources {
-		err := r.Acquire(access)
+		err := r.Acquire(access, riskBit)
 
 		// if there is an error acquiring one of the resources, abort access
 		// to all of the previously acquired resources and return the error
@@ -324,10 +333,12 @@ func (ss *StateServer) Variable(name string) *GlobalVariable {
 
 // Acquire wraps the underlying StateServer struct, creating a proper BorrowSpec
 // and attempting to borrow the value from this node's peers in the network.
-func (v *GlobalVariable) Acquire(access ResourceAccess) error {
+func (v *GlobalVariable) Acquire(access ResourceAccess, riskBit RiskBit) error {
 	if v.refs != nil {
 		return &ResourceInternalError{fmt.Sprintf("variable %s already acquired", v.name)}
 	}
+	// riskBit is true if a global variable is used, due to mutex-like behaviour
+	*riskBit = true
 
 	var spec BorrowSpec
 
@@ -350,13 +361,13 @@ func (v *GlobalVariable) Acquire(access ResourceAccess) error {
 
 // Read returns the value associated with a global variable. It *must*
 // have been acquired before.
-func (v *GlobalVariable) Read() (interface{}, error) {
+func (v *GlobalVariable) Read(_ RiskBit) (interface{}, error) {
 	return v.refs.Get(v.name), nil
 }
 
 // Write updates previously obtained references (via `Acquire`) to
 // the value passed to this function.
-func (v *GlobalVariable) Write(value interface{}) error {
+func (v *GlobalVariable) Write(value interface{}, _ RiskBit) error {
 	v.writtenValue = value
 	return nil
 }
@@ -500,15 +511,22 @@ func (mbox *Mailbox) sendMessage(msg interface{}) error {
 	}
 }
 
-func tryRead(ch chan interface{}, attempts, wait int) (interface{}, bool) {
-	for i := 0; i < attempts; i++ {
-		select {
-		case msg := <-ch:
-			return msg, true
-		default:
-			time.Sleep(time.Duration(wait) * time.Millisecond)
-		}
-	}
+func tryRead(ch chan interface{}, attempts, wait int, riskBit RiskBit) (interface{}, bool) {
+	if *riskBit {
+        for i := 0; i < attempts; i++ {
+            select {
+            case msg := <-ch:
+                return msg, true
+            default:
+                time.Sleep(time.Duration(wait) * time.Millisecond)
+            }
+        }
+    } else {
+        // if !*riskBit, we can block indefinitely, because we are outside of any mutex context that could
+        // cause liveness issues
+        msg := <-ch
+        return msg, true
+    }
 
 	return nil, false
 }
@@ -571,14 +589,14 @@ func MailboxRef(name string, version int, conns *Connections, configuration map[
 }
 
 // Acquire is a no-op for mailboxes
-func (_ *Mailbox) Acquire(_ ResourceAccess) error {
+func (_ *Mailbox) Acquire(_ ResourceAccess, _ RiskBit) error {
 	return nil
 }
 
 // Read attempts to read a message; in cases there are none, it
 // returns an AbortRetryError. It is enforced that processes can only
 // read messages from their own mailboxes.
-func (mbox *Mailbox) Read() (interface{}, error) {
+func (mbox *Mailbox) Read(riskBit RiskBit) (interface{}, error) {
 	if !stringInList(mbox.name, mbox.selfNames) {
 		panic(fmt.Sprintf("Tried to read non-local mailbox %s (attempted by %s)", mbox.name, mbox.selfNames))
 	}
@@ -605,7 +623,7 @@ func (mbox *Mailbox) Read() (interface{}, error) {
 	// incoming messages on the mailbox
 	var msg interface{}
 	var ok bool
-	if msg, ok = tryRead(mbox.readChan, mbox.readAttempts, mbox.waitDuration); !ok {
+	if msg, ok = tryRead(mbox.readChan, mbox.readAttempts, mbox.waitDuration, riskBit); !ok {
 		return nil, &AbortRetryError{"No messages in the buffer"}
 	}
 
@@ -615,7 +633,7 @@ func (mbox *Mailbox) Read() (interface{}, error) {
 
 // Write saves a message with the value given in a buffer to be sent
 // later, when the channel is released.
-func (mbox *Mailbox) Write(value interface{}) error {
+func (mbox *Mailbox) Write(value interface{}, _ RiskBit) error {
 	mbox.lock.Lock()
 	defer mbox.lock.Unlock()
 
@@ -697,7 +715,7 @@ func NewLocalChannel(name string, bufferSize int) *LocalChannelResource {
 }
 
 // Acquire tries to get exclusive access to the local channel.
-func (localCh *LocalChannelResource) Acquire(access ResourceAccess) error {
+func (localCh *LocalChannelResource) Acquire(access ResourceAccess, _ RiskBit) error {
 	if !tryLock(localCh.lock) {
 		return &AbortRetryError{"Could not acquire LocalChannelResource"}
 	}
@@ -706,11 +724,11 @@ func (localCh *LocalChannelResource) Acquire(access ResourceAccess) error {
 }
 
 // Read waits for data to be available in the underlying Go channel.
-func (localCh *LocalChannelResource) Read() (interface{}, error) {
+func (localCh *LocalChannelResource) Read(riskBit RiskBit) (interface{}, error) {
 	var val interface{}
 	var ok bool
 
-	if val, ok = tryRead(localCh.ch, localCh.readAttempts, localCh.waitDuration); !ok {
+	if val, ok = tryRead(localCh.ch, localCh.readAttempts, localCh.waitDuration, riskBit); !ok {
 		return nil, &AbortRetryError{"No messages in the channel"}
 	}
 
@@ -719,7 +737,7 @@ func (localCh *LocalChannelResource) Read() (interface{}, error) {
 }
 
 // Write sends a value over the channel.
-func (localCh *LocalChannelResource) Write(value interface{}) error {
+func (localCh *LocalChannelResource) Write(value interface{}, _ RiskBit) error {
 	localCh.writeBuf = append(localCh.writeBuf, value)
 	return nil
 }
@@ -807,7 +825,7 @@ func NewFileResource(path string) *FileResource {
 
 // Acquire attempts to open the underlying file with appropriate
 // permissions.  Returns an error if it cannot be done.
-func (file *FileResource) Acquire(access ResourceAccess) error {
+func (file *FileResource) Acquire(access ResourceAccess, _ RiskBit) error {
 	perms := os.O_RDONLY
 	if access&WRITE_ACCESS != 0 {
 		perms = os.O_RDWR
@@ -824,7 +842,7 @@ func (file *FileResource) Acquire(access ResourceAccess) error {
 
 // Read returns a buffer with all the contents of the underlying file.
 // Panics if reading there is a an error reading the file.
-func (file *FileResource) Read() (interface{}, error) {
+func (file *FileResource) Read(_ RiskBit) (interface{}, error) {
 	if file.contents == nil {
 		data, err := ioutil.ReadAll(file.fd)
 
@@ -842,7 +860,7 @@ func (file *FileResource) Read() (interface{}, error) {
 // Write saves the value to be written in an internal
 // buffer. Subsequent Read() calls will return the newly written
 // value. Note that `value` *must* be []byte.
-func (file *FileResource) Write(value interface{}) error {
+func (file *FileResource) Write(value interface{}, _ RiskBit) error {
 	file.contents = value.([]byte)
 	file.dirty = true
 
@@ -893,17 +911,17 @@ func NewImmutableResource(value interface{}) *ImmutableResource {
 }
 
 // Acquire is a no-op for immutable resources
-func (_ *ImmutableResource) Acquire(_ ResourceAccess) error {
+func (_ *ImmutableResource) Acquire(_ ResourceAccess, _ RiskBit) error {
 	return nil
 }
 
 // Read returns the underlying value
-func (resource *ImmutableResource) Read() (interface{}, error) {
+func (resource *ImmutableResource) Read(_ RiskBit) (interface{}, error) {
 	return resource.value, nil
 }
 
 // Write panics (the resource is immutable)
-func (_ *ImmutableResource) Write(value interface{}) error {
+func (_ *ImmutableResource) Write(value interface{}, _ RiskBit) error {
 	panic("Attempted to write immutable resource")
 }
 
@@ -946,7 +964,8 @@ func NewLocallySharedResource(name string, val interface{}) *LocallySharedResour
 }
 
 // Acquire locks the resource for exclusive access
-func (resource *LocallySharedResource) Acquire(_ ResourceAccess) error {
+func (resource *LocallySharedResource) Acquire(_ ResourceAccess, riskBit RiskBit) error {
+	*riskBit = true
 	if !tryLock(resource.lock) {
 		return &AbortRetryError{"Could not acquire LocallySharedResource"}
 	}
@@ -955,7 +974,7 @@ func (resource *LocallySharedResource) Acquire(_ ResourceAccess) error {
 }
 
 // Read returns the current value of the resource
-func (resource *LocallySharedResource) Read() (interface{}, error) {
+func (resource *LocallySharedResource) Read(_ RiskBit) (interface{}, error) {
 	if resource.writtenBuf != nil {
 		return resource.writtenBuf, nil
 	}
@@ -964,7 +983,7 @@ func (resource *LocallySharedResource) Read() (interface{}, error) {
 }
 
 // Write updates the value of the underlying shared resource
-func (resource *LocallySharedResource) Write(value interface{}) error {
+func (resource *LocallySharedResource) Write(value interface{}, _ RiskBit) error {
 	resource.writtenBuf = value
 	return nil
 }
@@ -1018,12 +1037,12 @@ func NewAtomicInteger(name string, initial int32) *AtomicInteger {
 }
 
 // Acquire is a no-op for atomic integers
-func (_ AtomicInteger) Acquire(_ ResourceAccess) error {
+func (_ AtomicInteger) Acquire(_ ResourceAccess, _ RiskBit) error {
 	return nil
 }
 
 // Read returns the current value of the resource
-func (aint *AtomicInteger) Read() (interface{}, error) {
+func (aint *AtomicInteger) Read(_ RiskBit) (interface{}, error) {
 	if aint.writtenValue != nil {
 		return int(*aint.writtenValue), nil
 	}
@@ -1032,7 +1051,7 @@ func (aint *AtomicInteger) Read() (interface{}, error) {
 }
 
 // Write updates the value of the underlying integer
-func (aint *AtomicInteger) Write(value interface{}) error {
+func (aint *AtomicInteger) Write(value interface{}, _ RiskBit) error {
 	intValue := int32(value.(int))
 	aint.writtenValue = &intValue
 
@@ -1084,17 +1103,17 @@ func NewSleepResource(name string, unit time.Duration) *SleepResource {
 }
 
 // Acquire is a no-op for sleep resources
-func (_ *SleepResource) Acquire(_ ResourceAccess) error {
+func (_ *SleepResource) Acquire(_ ResourceAccess, _ RiskBit) error {
 	return nil
 }
 
 // Read panics if invoked. Sleep resources should not be read from!
-func (_ *SleepResource) Read() (interface{}, error) {
+func (_ *SleepResource) Read(_ RiskBit) (interface{}, error) {
 	panic("Attempted to read SleepResource")
 }
 
 // Write sleeps for the specified amount of time (must be an integer)
-func (s *SleepResource) Write(value interface{}) error {
+func (s *SleepResource) Write(value interface{}, _ RiskBit) error {
 	t := value.(int)
 
 	time.Sleep(time.Duration(t) * s.unit)

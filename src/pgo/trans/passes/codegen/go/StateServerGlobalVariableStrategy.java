@@ -104,6 +104,11 @@ public class StateServerGlobalVariableStrategy extends GlobalVariableStrategy {
 	}
 
 	@Override
+	public void registerNondeterminism(GoBlockBuilder builder) {
+		// pass
+	}
+
+	@Override
 	public void initPostlude(GoModuleBuilder moduleBuilder, GoBlockBuilder initBuilder) {
 		GoVariableName processName = moduleBuilder.defineGlobal(processNameUID, "processName", GoBuiltins.String);
 		addVariable(processNameUID, processName);

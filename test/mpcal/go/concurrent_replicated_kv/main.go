@@ -95,7 +95,7 @@ func (g Get) Run() chan bool {
 
 		// Read without Acquire because we know `response` is not
 		// shared
-		response.Read()
+		response.Read(new(bool))
 		done <- true
 	})
 

@@ -28,6 +28,7 @@ public class ArchetypeResourcesGlobalVariableStrategy extends GlobalVariableStra
     private LocalVariableStrategy localStrategy;
     private UID archetype;
     private GoVariableName err;
+    private GoVariableName riskBit;
     private GoVariableName acquiredResources;
     private int currentLockGroup;
     private GoLabelName currentLabel;
@@ -79,6 +80,14 @@ public class ArchetypeResourcesGlobalVariableStrategy extends GlobalVariableStra
 
             this.acquiredResources = builder.varDecl("acquiredResources", type);
         }
+
+        // all archetype resources need a risk bit
+        this.riskBit = builder.varDecl("riskBit", GoBuiltins.Bool);
+    }
+
+    @Override
+    public void registerNondeterminism(GoBlockBuilder builder) {
+        builder.assign(new GoUnary(GoUnary.Operation.DEREF, riskBit), GoBuiltins.True);
     }
 
     @Override
@@ -105,19 +114,20 @@ public class ArchetypeResourcesGlobalVariableStrategy extends GlobalVariableStra
         registry.getResourceReadsInLockGroup(lockGroup).forEach(generateLocalBinding.apply(readExps));
         registry.getResourceWritesInLockGroup(lockGroup).forEach(generateLocalBinding.apply(writeExps));
 
-        // err = distsys.AcquireResources(distys.READ_ACCESS, ...{readExps})
+        // err = distsys.AcquireResources(distys.READ_ACCESS, riskBit, ...{readExps})
         // if err != nil { return err }
         BiConsumer<String, Set<GoExpression>> acquire = (permission, resources) -> {
             if (!resources.isEmpty()) {
-                ArrayList<GoExpression> args = new ArrayList<>(
-                        Collections.singletonList(distsys(permission))
-                );
+                ArrayList<GoExpression> args = new ArrayList<>(Arrays.asList(distsys(permission), new GoUnary(GoUnary.Operation.ADDR, riskBit)));
                 args.addAll(resources);
                 GoExpression acquireCall = new GoCall(distsys("AcquireResources"), args);
                 builder.assign(err, acquireCall);
                 shouldRetry(builder, false);
             }
         };
+
+        // reset risk bit
+        builder.assign(riskBit, GoBuiltins.False);
 
         // reset acquired resources
         if (functionMaps) {
@@ -203,7 +213,7 @@ public class ArchetypeResourcesGlobalVariableStrategy extends GlobalVariableStra
 
         GoExpression readCall = new GoCall(
                 new GoSelectorExpression(target, "Read"),
-                Collections.emptyList()
+                Collections.singletonList(new GoUnary(GoUnary.Operation.ADDR, riskBit))
         );
 
         GoVariableName readTemp = builder.varDecl("readTemp", GoBuiltins.Interface);
@@ -238,7 +248,7 @@ public class ArchetypeResourcesGlobalVariableStrategy extends GlobalVariableStra
             public void writeAfter(GoBlockBuilder builder) {
                 GoExpression write = new GoCall(
                         new GoSelectorExpression(target, "Write"),
-                        Collections.singletonList(tempVar)
+                        Arrays.asList(tempVar, new GoUnary(GoUnary.Operation.ADDR, riskBit))
                 );
                 builder.assign(err, write);
                 shouldRetry(builder, true);
@@ -441,6 +451,7 @@ public class ArchetypeResourcesGlobalVariableStrategy extends GlobalVariableStra
                         distsys("AcquireResources"),
                         Arrays.asList(
                                 distsys(permission),
+                                new GoUnary(GoUnary.Operation.ADDR, riskBit),
                                 resourceGet
                         )
                 ));

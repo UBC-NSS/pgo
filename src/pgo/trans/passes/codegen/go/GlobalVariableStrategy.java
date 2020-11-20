@@ -33,6 +33,12 @@ public abstract class GlobalVariableStrategy implements CriticalSection {
 		return variables.get(uid);
 	}
 
+	/**
+	 * 	Called at the beginning of an either, to allow ArchetypeResourceGlobalVariableStrategy to statically disallow
+	 * 	any blocking actions that might interfere with the liveness of trying each execution path one by one: any one
+	 * 	path may not do anything that indefinitely holds up the others.
+ 	 */
+	public abstract void registerNondeterminism(GoBlockBuilder builder);
 
 	public abstract void initPostlude(GoModuleBuilder moduleBuilder, GoBlockBuilder initBuilder);
 

@@ -131,6 +131,11 @@ public class EtcdGlobalVariableStrategy extends GlobalVariableStrategy {
 	}
 
 	@Override
+	public void registerNondeterminism(GoBlockBuilder builder) {
+		// pass
+	}
+
+	@Override
 	public void mainPrelude(GoBlockBuilder builder) {
 		StateServerGlobalVariableStrategy.generateProcessSwitch(
 				typeMap, modularPlusCalBlock, builder, findVariable(processNameUID), findVariable(processArgumentUID));

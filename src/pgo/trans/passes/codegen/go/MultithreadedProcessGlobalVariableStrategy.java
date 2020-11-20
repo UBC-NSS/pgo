@@ -62,6 +62,11 @@ public class MultithreadedProcessGlobalVariableStrategy extends GlobalVariableSt
 	}
 
 	@Override
+	public void registerNondeterminism(GoBlockBuilder builder) {
+		// pass
+	}
+
+	@Override
 	public void processPrelude(GoBlockBuilder processBody, PlusCalProcess process, String processName, GoVariableName self,
 							   GoType selfType) {
 		processBody.deferStmt(new GoCall(

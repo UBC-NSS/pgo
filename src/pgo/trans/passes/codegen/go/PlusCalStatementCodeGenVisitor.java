@@ -207,6 +207,7 @@ public class PlusCalStatementCodeGenVisitor extends PlusCalStatementVisitor<Void
 			labels.add(builder.newLabel("case" + Integer.toString(i)));
 		}
 		GoLabelName endEither = builder.newLabel("endEither");
+		globalStrategy.registerNondeterminism(builder);
 		// start codegen
 		for (int i = 0; i < cases.size(); i++) {
 			List<PlusCalStatement> eitherCase = cases.get(i);
