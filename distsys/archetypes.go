@@ -6,17 +6,22 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"github.com/benbjohnson/immutable"
 	"io"
 	"log"
 	"net"
 	"sync"
 	"time"
+
+	"github.com/benbjohnson/immutable"
 )
 
+// Here is a warning from go-static-check:
+// error var CriticalSectionAborted should have name of the form ErrFoo (ST1012)
 var CriticalSectionAborted = errors.New("MPCal critical section aborted")
 
 type ArchetypeResource interface {
+	// I suggest removing these two lines, because it makes a very strong dependency to Gob library which is hard to change in future.
+	// We can use an approach similar to the Codec that Go's RPC server uses to be flexible in serialization method.
 	gob.GobDecoder
 	gob.GobEncoder
 	Abort() chan struct{}
@@ -767,6 +772,7 @@ func (res *TCPMailboxRemoteArchetypeResource) ReadValue() (TLAValue, error) {
 	panic(fmt.Errorf("attempted to read from a remote mailbox archetype resource"))
 }
 
+// I suggest writing a handleFunction instead of using goto.
 func (res *TCPMailboxRemoteArchetypeResource) WriteValue(value TLAValue) error {
 	err := res.ensureConnection()
 	if err != nil {

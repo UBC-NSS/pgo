@@ -7,6 +7,7 @@ import (
 
 var AssertionFailed = errors.New("assertion failed")
 
+// What is definition of this struct?
 type ArchetypeResourceHandle struct {
 	Tag   int
 	Index int
@@ -42,6 +43,9 @@ type MPCalDurableStorage interface {
 	SnapshotResources(rec *MPCalDurableStorageRecord)
 }
 
+// I suggest writing definition of important types like this exactly. In this case, it's not trivial
+// to see that MPCalContext closely resembles logic of critical section and it can be confusing.
+// Moreover, I suggest defining MPCalContext as an interface.
 type MPCalContext struct {
 	durableStorage MPCalDurableStorage
 	record         MPCalDurableStorageRecord
@@ -81,6 +85,7 @@ func NewMPCalContext(durableStorage MPCalDurableStorage) (*MPCalContext, error) 
 
 type MPCalContextArchetypeConfigFn func(durability MPCalDurableStorage, resource ArchetypeResource)
 
+// What does ensurer do exactly?
 type MPCalContextResourceEnsurer func(blank ArchetypeResource, configFn func(resource ArchetypeResource)) ArchetypeResourceHandle
 
 func (ctx *MPCalContext) ResourceEnsurerByName(name string) MPCalContextResourceEnsurer {

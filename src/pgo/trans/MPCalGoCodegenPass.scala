@@ -47,6 +47,8 @@ object MPCalGoCodegenPass {
   def toGoPublicName(id: String): String =
     id.capitalize
 
+  // I think it's confusing that type of output is "Description". I know that it's probably because of borrowing the code
+  // from 416 grader, but maybe it's better to rename it here.
   def translateMPCalCallable(callableName: String, selfDeclOpt: Option[TLADefiningIdentifier], params: List[MPCalParam], variables: List[PCalVariableDeclaration], body: List[PCalStatement])(implicit ctx: GoCodegenContext): Description = {
     assert(body.forall(_.isInstanceOf[PCalLabeledStatements]))
     val nameCleaner = ctx.nameCleaner
@@ -70,6 +72,7 @@ object MPCalGoCodegenPass {
         label.name -> s"${ctx.nameCleaner.cleanName(label.name)}LabelTag"
     }.toMap
 
+    // What does fn do here?
     def readExpr(expr: TLAExpression, hint: String = "resourceRead")(fn: Description=>Description)(implicit ctx: GoCodegenContext): Description = {
       val resourceReads = mutable.ListBuffer[(DefinitionOne,PCalVariableDeclarationEmpty,List[TLAExpression])]()
       lazy val readReplacer: PartialFunction[Rewritable,Rewritable] = {
@@ -390,6 +393,7 @@ object MPCalGoCodegenPass {
       case ch => ch.toString
     }
 
+  // What's the difference between readExpr and translateExpr?
   def translateExpr(expression: TLAExpression)(implicit ctx: GoCodegenContext): Description =
     expression match {
       case TLAString(value) =>
@@ -589,6 +593,7 @@ object MPCalGoCodegenPass {
     val Constants = nameCleaner.cleanName("Constants")
 
     val tlaExtDefns = (BuiltinModules.Intrinsics.members.view ++ tlaModule.exts.flatMap {
+      // What's the difference between TLAModuleRefBuiltin and TLAModuleRefModule?
       case TLAModuleRefBuiltin(module) => module.members.view
       case TLAModuleRefModule(module) => ??? // TODO: actually implement modules
     }).toList
@@ -629,6 +634,7 @@ object MPCalGoCodegenPass {
           case TLAOpDecl.SymbolVariant(sym) => decl -> nameCleaner.cleanName(toGoPublicName(sym.symbol.productPrefix))
         }
     }.to(IdMap)
+    // I didn't understand why we need IdMap.
 
     val ctxName = nameCleaner.cleanName("ctx")
     val selfName = nameCleaner.cleanName("self")
@@ -661,7 +667,7 @@ object MPCalGoCodegenPass {
     d"package ${packageName.getOrElse(mpcalBlock.name.id.toLowerCase(Locale.ROOT)): String}\n" +
       d"\nimport (${
         (d"""\n"github.com/UBC-NSS/pgo/distsys"""" +
-          d"""\n"fmt"""").indented
+          d"""\n"fmt\n"""").indented
       })\n" +
       d"\ntype $Constants struct {${
         constantDecls.map {
