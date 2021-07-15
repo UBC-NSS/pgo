@@ -117,7 +117,7 @@ object TLAMeta {
     raw"""\succeq""" -> (5, 5, false),
     raw"""\supset""" -> (5, 5, false),
     raw"""\supseteq""" -> (5, 5, false),
-    raw"""${ "\\" }union""" -> (8, 8, false),
+    raw"""${ "\\" }union""" -> (8, 8, true),
     raw"""${ "\\" }uplus""" -> (9, 13, true),
     raw"""\wr""" -> (9, 14, false),
     raw"""^""" -> (14, 14, false),

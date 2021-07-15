@@ -363,3 +363,4 @@ lib/pgo.jar
 
 # ignore copied src in example/output/
 /examples/output/*/src/
+target/
