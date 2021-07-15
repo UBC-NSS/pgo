@@ -1,0 +1,73 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "mpcal",
+	"patterns": [
+		{
+			"include": "#code-block"
+		},
+		{
+			"include": "#keywords-control"
+		},
+		{
+			"include": "#keywords"
+		},
+		{
+			"include": "#variables"
+		},
+		{
+			"include": "#strings"
+		},
+		{
+			"include": "#comment-line"
+		},
+		{
+			"include": "#comment-block"
+		},
+		{
+			"include": "source.tlaplus.pluscal"
+		}
+	],
+	"repository": {
+		"code-block": {
+			"begin": "{",
+			"end": "}",
+			"patterns": [{
+				"include": "$self"
+			}]
+		},
+		"keywords-control": {
+			"name": "keyword.control.mpcal",
+			"match": "\\b(yield)\\b"
+		},
+		"keywords": {
+			"name": "keyword.other.mpcal",
+			"match": "\\b(archetype|instance|ref|mapping|read|write|via)\\b"
+		},
+		"variables": {
+			"name": "variable.parameter",
+			"match": "(\\$variable|\\$value)\\b"
+		},
+		"strings": {
+			"name": "string.quoted.double.mpcal",
+			"begin": "\"",
+			"end": "\"",
+			"patterns": [
+				{
+					"name": "constant.character.escape.mpcal",
+					"match": "\\\\."
+				}
+			]
+		},
+		"comment-line": {
+			"name": "comment.line.mpcal",
+			"begin": "\\\\\\*",
+			"end": "$"
+		},
+		"comment-block": {
+			"name": "comment.block.mpcal",
+			"begin": "\\(\\*",
+			"end": "\\*\\)"
+		}
+	},
+	"scopeName": "source.tlaplus.mpcal"
+}

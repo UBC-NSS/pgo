@@ -1,0 +1,66 @@
+{
+    "name": "mpcal",
+    "displayName": "MPCal",
+    "description": "Language support for MPCal",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.57.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [
+            {
+                "id": "mpcal",
+                "aliases": [
+                    "MPCal",
+                    "mpcal"
+                ],
+                "extensions": [],
+                "configuration": "./mpcal-language-configuration.json"
+            },
+            {
+                "id": "pluscal",
+                "aliases": [
+                    "PlusCal",
+                    "pluscal"
+                ],
+                "extensions": [],
+                "configuration": "./pluscal-language-configuration.json"
+            },
+            {
+                "id": "tlaplus",
+                "aliases": [
+                    "TLA+",
+                    "tlaplus"
+                ],
+                "extensions": [
+                    ".tla"
+                ],
+                "configuration": "./tlaplus-language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "mpcal",
+                "scopeName": "source.tlaplus.mpcal",
+                "path": "./syntaxes/mpcal.tmLanguage.json"
+            },
+            {
+                "language": "pluscal",
+                "scopeName": "source.tlaplus.pluscal",
+                "path": "./syntaxes/pluscal.tmLanguage.json"
+            },
+            {
+                "language": "tlaplus",
+                "scopeName": "source.tlaplus",
+                "path": "./syntaxes/tlaplus.tmLanguage.json",
+                "embeddedLanguages": {
+                    "meta.embedded.block.mpcal": "mpcal",
+                    "meta.embedded.block.pluscal": "pluscal"
+                }
+            }
+        ]
+    }
+}

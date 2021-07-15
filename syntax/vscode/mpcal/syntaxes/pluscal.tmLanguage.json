@@ -1,0 +1,80 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "pluscal",
+	"patterns": [
+		{
+			"include": "#code-block"
+		},
+		{
+			"include": "#keywords-control"
+		},
+		{
+			"include": "#keywords"
+		},
+		{
+			"include": "#variable-language"
+		},
+		{
+			"include": "#strings"
+		},
+		{
+			"include": "#comment-line"
+		},
+		{
+			"include": "#comment-block"
+		},
+		{
+			"include": "#punctuation"
+		},
+		{
+			"include": "source.tlaplus"
+		}
+	],
+	"repository": {
+		"code-block": {
+			"begin": "{",
+			"end": "}",
+			"patterns": [{
+				"include": "$self"
+			}]
+		},
+		"keywords-control": {
+			"name": "keyword.control.pluscal",
+			"match": "\\b(do|call|else|elsif|goto|if|return|skip|then|while|either|or|await|when|fair|with)\\b"
+		},
+		"keywords": {
+			"name": "keyword.other.pluscal",
+			"match": "\\b(define|macro|procedure|process|assert|begin|end|print|algorithm|variable(s)?)\\b"
+		},
+		"variable-language": {
+			"name": "variable.language.pluscal",
+			"match": "\\b(self)\\b"
+		},
+		"strings": {
+			"name": "string.quoted.double.pluscal",
+			"begin": "\"",
+			"end": "\"",
+			"patterns": [
+				{
+					"name": "constant.character.escape.pluscal",
+					"match": "\\\\."
+				}
+			]
+		},
+		"comment-line": {
+			"name": "comment.line.pluscal",
+			"begin": "\\\\\\*",
+			"end": "$"
+		},
+		"comment-block": {
+			"name": "comment.block.pluscal",
+			"begin": "\\(\\*",
+			"end": "\\*\\)"
+		},
+		"punctuation": {
+			"name": "punctuation.pluscal",
+			"match": "(:=|\\|\\|)"
+		}
+	},
+	"scopeName": "source.tlaplus.pluscal"
+}

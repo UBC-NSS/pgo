@@ -1,0 +1,161 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "tlaplus",
+	"patterns": [
+		{
+			"include": "#constants"
+		},
+		{
+			"include": "#keywords-control"
+		},
+		{
+			"include": "#keywords"
+		},
+		{
+			"include": "#keywords-operator"
+		},
+		{
+			"include": "#strings"
+		},
+		{
+			"include": "#numeric-constants"
+		},
+		{
+			"include": "#at-least-4-equals"
+		},
+		{
+			"include": "#at-least-4-dashes"
+		},
+		{
+			"include": "#comment-line"
+		},
+		{
+			"include": "#comment-block"
+		},
+		{
+			"include": "#operators-3-char"
+		},
+		{
+			"include": "#punctuation-3-char"
+		},
+		{
+			"include": "#operators-2-char"
+		},
+		{
+			"include": "#punctuation-2-char"
+		},
+		{
+			"include": "#operators-1-char"
+		},
+		{
+			"include": "#punctuation-1-char"
+		}
+	],
+	"repository": {
+		"constants": {
+			"name": "constant.language.tlaplus",
+			"match": "\\b(TRUE|FALSE)\\b"
+		},
+		"keywords-control": {
+			"name": "keyword.control.tlaplus",
+			"match": "\\b(IF|THEN|ELSE|CASE|OTHER)\\b"
+		},
+		"keywords": {
+            "name": "keyword.other.tlaplus",
+            "match": "\\b(ASSUME|ASSUMPTION|AXIOM|CHOOSE|DOMAIN|ENABLED|EXCEPT|IN|INSTANCE|LET|LOCAL|SF_|SUBSET|THEOREM|UNCHANGED|UNION|WF_|WITH|VARIABLE(S)?|CONSTANT(S)?|MODULE|EXTENDS)\\b"
+        },
+		"keywords-operator": {
+			"name": "keyword.operator.tlaplus",
+			"match": "(\\\\(lnot|neg|cap|cup|div|equiv|geq|in|intersect|leq|sqsubset|subset|subseteq|succ|succeq|supset|supseteq|union))\\b"
+		},
+		"strings": {
+			"name": "string.quoted.double.tlaplus",
+			"begin": "\"",
+			"end": "\"",
+			"patterns": [
+				{
+					"name": "constant.character.escape.tlaplus",
+					"match": "\\\\."
+				}
+			]
+		},
+		"numeric-constants": {
+			"name": "constant.numeric.tlaplus",
+			"match": "\\b((\\d+)|(\\d*\\.\\d+)|((\\\\b|\\\\B)[01]+)|((\\\\o|\\\\O)[0-7]+)|((\\\\h|\\\\H)([0-9]|[a-f]|[A-F])+))\\b"
+		},
+		"at-least-4-dashes": {
+            "name": "comment.line.tlaplus",
+            "match": "\\s*(\\-{4,})\\s*"
+		},
+		"at-least-4-equals": {
+            "name": "comment.line.tlaplus",
+            "match": "\\s*(={4,})\\s*"
+        },
+		"comment-line": {
+			"name": "comment.line.tlaplus",
+			"begin": "\\\\\\*",
+			"end": "$"
+		},
+		"comment-block": {
+			"name": "comment.block.tlaplus",
+			"begin": "\\(\\*",
+			"end": "\\*\\)",
+			"patterns": [
+				{
+					"begin": "(\\-\\-)(mpcal)(\\s+)(\\w+)(\\s*)({)",
+					"end": "}",
+					"beginCaptures": {
+						"2": {
+							"name": "keyword.other.mpcal"
+						}
+					},
+					"name": "meta.embedded.block.mpcal",
+					"patterns": [{
+						"include": "source.tlaplus.mpcal"
+					}]
+				},
+				{
+					"begin": "(\\-\\-)(algorithm|fair\\s+algorithm)(\\s+)(\\w+)(\\s*)({)",
+					"end": "}",
+					"beginCaptures": {
+						"2": {
+							"name": "keyword.other.pluscal" 
+						}
+					},
+					"name": "meta.embedded.block.pluscal",
+					"patterns": [{
+						"include": "source.tlaplus.pluscal"
+					}]
+				},
+				{
+					"include": "#comment-block"
+				}
+			]
+		},
+		"operators-3-char": {
+			"name": "keyword.operator.tlaplus",
+			"match": "(\\<=\\>|\\\\AA|\\\\EE)"
+		},
+		"punctuation-3-char": {
+			"name": "punctuation.tlaplus",
+			"match": "(\\|\\-\\>)"
+		},
+		"operators-2-char": {
+			"name": "keyword.operator.tlaplus",
+			"match": "(==|\\\\A|\\\\E|\\[\\]|<>|!!|##|\\$\\$|%%|&&|=\\>|\\?\\?|@@|\\\\\\/|\\|\\||~\\>|\\*\\*|\\+\\+|\\-\\-|\\-\\||\\.\\.|\\/\\/|\\/=|\\/\\\\|:=)"
+		},
+		"punctuation-2-char": {
+			"name": "punctuation.tlaplus",
+			"match": "(\\<\\<|\\>\\>)"
+		},
+		"operators-1-char": {
+			"name": "keyword.operator.tlaplus",
+			"match": "([\\-~#$%&*+\\-=\\<\\>\\?\\\\\\^\\|\\.])"
+		},
+		"punctuation-1-char": {
+			"name": "punctuation.tlaplus",
+			"match": "([\\[\\]\\(\\):{},;!\\'])"	
+		}
+	},
+	"scopeName": "source.tlaplus"
+}

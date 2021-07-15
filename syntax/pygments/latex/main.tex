@@ -1,0 +1,99 @@
+\documentclass[12pt]{article}
+
+\usepackage{fullpage}
+
+\usepackage{hyperref}
+\hypersetup{}
+
+\usepackage{xspace}
+\usepackage{minted}
+
+\usepackage[skip=2pt]{caption}
+
+\begin{document}
+
+\title{MPCal Syntax Highlighting}
+\date{}
+
+\maketitle
+
+We use \href{https://ctan.org/pkg/minted?lang=en}{\textsf{minted}} package for syntax highlighting in the \LaTeX\xspace documents. Figure \ref{fig-mpcal} shows an MPCal code block that uses \texttt{mpcal} lexer. It's useful when you want to show a block of MPCal code. Figure \ref{fig-tlaplus} depicts a TLA\textsuperscript{+} code block using \texttt{tla+} lexer. It supports PlusCal and MPCal languages in the comments.
+
+\begin{figure}[H]
+	\begin{minted}[frame=single, linenos, breaklines, fontsize=\footnotesize]{mpcal}
+mapping macro TCPChannel {
+    read {
+        await Len($variable) > 0; 
+        with (msg = Head($variable)) {
+            $variable := Tail($variable);
+            yield msg;
+        };
+    }
+
+    write {
+        await Len($variable) < BUFFER_SIZE;
+        yield Append($variable, $value);
+    }
+}
+	\end{minted}
+  	\caption{MPCal code block.}
+  	\label{fig-mpcal}
+\end{figure}
+
+\begin{figure}[H]
+	\begin{minted}[frame=single, linenos, breaklines, fontsize=\footnotesize]{tla+}
+-------------------------------- MODULE demo --------------------------------
+EXTENDS Naturals, Sequences, TLC
+(*****************
+--mpcal Bug {
+    archetype AFoo() {
+        c1: print("Hello");
+    }
+
+    fair process (Foo = 1) == instance AFoo();
+}
+
+\* BEGIN PLUSCAL TRANSLATION
+--algorithm Bug {
+    fair process (Foo = 1) {
+        c1:
+            print "Hello";
+    
+    }
+}
+\* END PLUSCAL TRANSLATION
+*****************)
+\* BEGIN TRANSLATION (chksum(pcal) = "30725eec" /\ chksum(tla) = "ab8ae8f8")
+VARIABLE pc
+
+vars == << pc >>
+
+ProcSet == {1}
+
+Init == /\ pc = [self \in ProcSet |-> "c1"]
+
+c1 == /\ pc[1] = "c1"
+      /\ PrintT("Hello")
+      /\ pc' = [pc EXCEPT ![1] = "Done"]
+
+Foo == c1
+
+Terminating == /\ \A self \in ProcSet: pc[self] = "Done"
+               /\ UNCHANGED vars
+
+Next == Foo
+           \/ Terminating
+
+Spec == /\ Init /\ [][Next]_vars
+        /\ WF_vars(Foo)
+
+Termination == <>(\A self \in ProcSet: pc[self] = "Done")
+
+\* END TRANSLATION 
+=============================================================================
+	\end{minted}
+  	\caption{TLA\textsuperscript{+} code block.}
+  	\label{fig-tlaplus}
+\end{figure}
+
+\end{document}
